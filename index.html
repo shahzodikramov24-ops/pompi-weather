@@ -1,0 +1,824 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>PoMPi Weather</title>
+
+<link rel="stylesheet"
+href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"/>
+
+<style>
+* {
+    box-sizing: border-box;
+}
+
+body {
+    margin: 0;
+    font-family: Arial, sans-serif;
+    background: linear-gradient(135deg, #07152b, #123c69);
+    color: white;
+    min-height: 100vh;
+}
+
+header {
+    padding: 20px;
+    text-align: center;
+    background: rgba(0,0,0,0.25);
+}
+
+.logo {
+    font-size: 32px;
+    font-weight: bold;
+}
+
+.search {
+    display: flex;
+    justify-content: center;
+    gap: 10px;
+    margin: 20px auto;
+    max-width: 700px;
+    padding: 0 15px;
+}
+
+.search input {
+    flex: 1;
+    padding: 14px;
+    border: none;
+    border-radius: 12px;
+    font-size: 16px;
+}
+
+button {
+    border: none;
+    border-radius: 12px;
+    padding: 12px 18px;
+    cursor: pointer;
+    background: #4da3ff;
+    color: white;
+    font-weight: bold;
+}
+
+button:hover {
+    background: #2689ed;
+}
+
+.container {
+    max-width: 1200px;
+    margin: auto;
+    padding: 20px;
+}
+
+.weather-main {
+    text-align: center;
+    background: rgba(255,255,255,0.12);
+    border-radius: 20px;
+    padding: 30px;
+    margin-bottom: 20px;
+}
+
+.city {
+    font-size: 30px;
+    font-weight: bold;
+}
+
+.temperature {
+    font-size: 75px;
+    font-weight: bold;
+    margin: 10px;
+}
+
+.description {
+    font-size: 22px;
+}
+
+.cards {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+    gap: 15px;
+    margin-bottom: 25px;
+}
+
+.card {
+    background: rgba(255,255,255,0.12);
+    padding: 20px;
+    border-radius: 18px;
+    text-align: center;
+}
+
+.card h3 {
+    margin-top: 0;
+}
+
+.big {
+    font-size: 30px;
+    margin: 10px 0;
+}
+
+.section {
+    background: rgba(255,255,255,0.10);
+    border-radius: 20px;
+    padding: 20px;
+    margin-bottom: 25px;
+}
+
+.section h2 {
+    margin-top: 0;
+}
+
+.forecast {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(130px, 1fr));
+    gap: 12px;
+}
+
+.day {
+    background: rgba(255,255,255,0.12);
+    padding: 15px;
+    border-radius: 15px;
+    text-align: center;
+}
+
+.day .icon {
+    font-size: 35px;
+    margin: 8px;
+}
+
+#map {
+    height: 450px;
+    border-radius: 18px;
+}
+
+.hotcold {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 20px;
+}
+
+.hot, .cold {
+    padding: 20px;
+    border-radius: 18px;
+    background: rgba(255,255,255,0.12);
+}
+
+.hot h3 {
+    color: #ff8a65;
+}
+
+.cold h3 {
+    color: #81d4fa;
+}
+
+.city-item {
+    padding: 10px;
+    margin: 7px 0;
+    background: rgba(255,255,255,0.1);
+    border-radius: 10px;
+    cursor: pointer;
+}
+
+.city-item:hover {
+    background: rgba(255,255,255,0.2);
+}
+
+.favorite {
+    margin-top: 15px;
+}
+
+.warning {
+    background: rgba(255, 170, 0, 0.25);
+    border: 1px solid rgba(255, 190, 0, 0.6);
+    padding: 15px;
+    border-radius: 15px;
+    margin-top: 15px;
+}
+
+#status {
+    text-align: center;
+    margin: 15px;
+    font-weight: bold;
+}
+
+footer {
+    text-align: center;
+    padding: 25px;
+    background: rgba(0,0,0,0.2);
+}
+
+@media (max-width: 700px) {
+    .search {
+        flex-direction: column;
+    }
+
+    .hotcold {
+        grid-template-columns: 1fr;
+    }
+
+    .temperature {
+        font-size: 55px;
+    }
+}
+</style>
+</head>
+
+<body>
+
+<header>
+    <div class="logo">🌍 PoMPi Weather</div>
+    <p>Погода по всему миру</p>
+</header>
+
+<div class="search">
+    <input id="cityInput" placeholder="Введите город, например Ташкент">
+    <button onclick="searchCity()">🔍 Найти</button>
+    <button onclick="getLocation()">📍 Моё место</button>
+</div>
+
+<div id="status"></div>
+
+<div class="container">
+
+    <div class="weather-main">
+        <div class="city" id="cityName">Выберите город</div>
+        <div class="temperature" id="temperature">--°</div>
+        <div class="description" id="description">
+            Здесь появится погода
+        </div>
+
+        <button class="favorite" onclick="addFavorite()">
+            ⭐ Добавить в избранное
+        </button>
+
+        <div id="warning"></div>
+    </div>
+
+    <div class="cards">
+
+        <div class="card">
+            <h3>🌡️ Ощущается</h3>
+            <div class="big" id="feels">--°</div>
+        </div>
+
+        <div class="card">
+            <h3>💧 Влажность</h3>
+            <div class="big" id="humidity">--%</div>
+        </div>
+
+        <div class="card">
+            <h3>💨 Ветер</h3>
+            <div class="big" id="wind">-- км/ч</div>
+        </div>
+
+        <div class="card">
+            <h3>☀️ УФ-индекс</h3>
+            <div class="big" id="uv">--</div>
+        </div>
+
+        <div class="card">
+            <h3>🌧️ Дождь</h3>
+            <div class="big" id="rain">--%</div>
+        </div>
+
+        <div class="card">
+            <h3>🌙 Луна</h3>
+            <div class="big" id="moon">🌙</div>
+        </div>
+
+        <div class="card">
+            <h3>🌅 Восход</h3>
+            <div class="big" id="sunrise">--:--</div>
+        </div>
+
+        <div class="card">
+            <h3>🌇 Закат</h3>
+            <div class="big" id="sunset">--:--</div>
+        </div>
+
+    </div>
+
+    <div class="section">
+        <h2>📅 Прогноз на 7 дней</h2>
+        <div class="forecast" id="forecast"></div>
+    </div>
+
+    <div class="section">
+        <h2>⭐ Избранные города</h2>
+        <div id="favorites">Пока нет избранных городов.</div>
+    </div>
+
+    <div class="section">
+        <h2>🔥❄️ Где сейчас жарко и холодно?</h2>
+
+        <div class="hotcold">
+
+            <div class="hot">
+                <h3>🔥 Жаркие места</h3>
+                <div id="hotCities">
+                    Загрузка...
+                </div>
+            </div>
+
+            <div class="cold">
+                <h3>❄️ Холодные места</h3>
+                <div id="coldCities">
+                    Загрузка...
+                </div>
+            </div>
+
+        </div>
+    </div>
+
+    <div class="section">
+        <h2>🗺️ Карта</h2>
+        <div id="map"></div>
+    </div>
+
+</div>
+
+<footer>
+    🌍 PoMPi Weather — погода по всему миру
+</footer>
+
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+
+<script>
+
+let currentCity = "";
+let currentLat = 41.2995;
+let currentLon = 69.2401;
+
+const worldCities = [
+    {name:"Ташкент", lat:41.2995, lon:69.2401},
+    {name:"Москва", lat:55.7558, lon:37.6173},
+    {name:"Лондон", lat:51.5074, lon:-0.1278},
+    {name:"Париж", lat:48.8566, lon:2.3522},
+    {name:"Нью-Йорк", lat:40.7128, lon:-74.0060},
+    {name:"Токио", lat:35.6762, lon:139.6503},
+    {name:"Дубай", lat:25.2048, lon:55.2708},
+    {name:"Сидней", lat:-33.8688, lon:151.2093},
+    {name:"Рейкьявик", lat:64.1466, lon:-21.9426},
+    {name:"Берлин", lat:52.5200, lon:13.4050}
+];
+
+let map = L.map('map').setView([41.2995, 69.2401], 3);
+
+L.tileLayer(
+    'https://{s}.tile.openstreetmap.fr/hot/{z}/{x}/{y}.png',
+    {
+        maxZoom: 19,
+        attribution: '&copy; OpenStreetMap'
+    }
+).addTo(map);
+
+let markers = [];
+
+function weatherText(code) {
+
+    if (code === 0) return "☀️ Ясно";
+    if (code <= 3) return "🌤️ Облачно";
+    if (code <= 48) return "🌫️ Туман";
+    if (code <= 67) return "🌧️ Дождь";
+    if (code <= 77) return "❄️ Снег";
+    if (code <= 82) return "🌦️ Ливень";
+    if (code >= 95) return "⛈️ Гроза";
+
+    return "🌤️ Погода";
+}
+
+function weatherIcon(code) {
+
+    if (code === 0) return "☀️";
+    if (code <= 3) return "🌤️";
+    if (code <= 48) return "🌫️";
+    if (code <= 67) return "🌧️";
+    if (code <= 77) return "❄️";
+    if (code <= 82) return "🌦️";
+    if (code >= 95) return "⛈️";
+
+    return "🌤️";
+}
+
+async function searchCity() {
+
+    let city = document.getElementById("cityInput").value.trim();
+
+    if (!city) {
+        alert("Введите название города");
+        return;
+    }
+
+    document.getElementById("status").textContent =
+        "🔎 Ищем город...";
+
+    try {
+
+        let response = await fetch(
+            "https://geocoding-api.open-meteo.com/v1/search?name=" +
+            encodeURIComponent(city) +
+            "&count=1&language=ru&format=json"
+        );
+
+        let data = await response.json();
+
+        if (!data.results || data.results.length === 0) {
+
+            document.getElementById("status").textContent =
+                "❌ Город не найден";
+
+            return;
+        }
+
+        let result = data.results[0];
+
+        currentCity = result.name;
+        currentLat = result.latitude;
+        currentLon = result.longitude;
+
+        loadWeather(
+            currentCity,
+            currentLat,
+            currentLon
+        );
+
+    } catch (error) {
+
+        document.getElementById("status").textContent =
+            "❌ Ошибка соединения";
+    }
+}
+
+async function loadWeather(city, lat, lon) {
+
+    document.getElementById("status").textContent =
+        "🌦️ Загружаем погоду...";
+
+    try {
+
+        let url =
+        "https://api.open-meteo.com/v1/forecast" +
+        "?latitude=" + lat +
+        "&longitude=" + lon +
+        "&current=temperature_2m,relative_humidity_2m,apparent_temperature,is_day,precipitation,rain,weather_code,wind_speed_10m" +
+        "&hourly=uv_index,precipitation_probability" +
+        "&daily=weather_code,temperature_2m_max,temperature_2m_min,sunrise,sunset,uv_index_max,precipitation_probability_max" +
+        "&timezone=auto";
+
+        let response = await fetch(url);
+
+        let data = await response.json();
+
+        currentCity = city;
+        currentLat = lat;
+        currentLon = lon;
+
+        document.getElementById("cityName").textContent =
+            "📍 " + city;
+
+        document.getElementById("temperature").textContent =
+            Math.round(data.current.temperature_2m) + "°";
+
+        document.getElementById("description").textContent =
+            weatherText(data.current.weather_code);
+
+        document.getElementById("feels").textContent =
+            Math.round(data.current.apparent_temperature) + "°";
+
+        document.getElementById("humidity").textContent =
+            data.current.relative_humidity_2m + "%";
+
+        document.getElementById("wind").textContent =
+            Math.round(data.current.wind_speed_10m) + " км/ч";
+
+        document.getElementById("rain").textContent =
+            (data.daily.precipitation_probability_max[0] || 0) + "%";
+
+        document.getElementById("uv").textContent =
+            data.daily.uv_index_max[0];
+
+        document.getElementById("sunrise").textContent =
+            formatTime(data.daily.sunrise[0]);
+
+        document.getElementById("sunset").textContent =
+            formatTime(data.daily.sunset[0]);
+
+        document.getElementById("moon").textContent =
+            getMoon();
+
+        showWarning(data);
+
+        createForecast(data);
+
+        map.setView([lat, lon], 8);
+
+        L.marker([lat, lon])
+            .addTo(map)
+            .bindPopup(
+                "<b>" + city + "</b><br>" +
+                Math.round(data.current.temperature_2m) +
+                "°C"
+            )
+            .openPopup();
+
+        document.getElementById("status").textContent =
+            "✅ Погода обновлена";
+
+    } catch (error) {
+
+        document.getElementById("status").textContent =
+            "❌ Не удалось загрузить погоду";
+    }
+}
+
+function createForecast(data) {
+
+    let box = document.getElementById("forecast");
+
+    box.innerHTML = "";
+
+    for (let i = 0; i < 7; i++) {
+
+        let date = new Date(data.daily.time[i]);
+
+        let day = date.toLocaleDateString(
+            "ru-RU",
+            {weekday:"short", day:"numeric"}
+        );
+
+        box.innerHTML += `
+
+        <div class="day">
+
+            <b>${day}</b>
+
+            <div class="icon">
+                ${weatherIcon(data.daily.weather_code[i])}
+            </div>
+
+            <div>
+                ${Math.round(data.daily.temperature_2m_max[i])}°
+                /
+                ${Math.round(data.daily.temperature_2m_min[i])}°
+            </div>
+
+            <small>
+                🌧️ ${data.daily.precipitation_probability_max[i] || 0}%
+            </small>
+
+        </div>
+
+        `;
+    }
+}
+
+function formatTime(value) {
+
+    if (!value) return "--:--";
+
+    return value.substring(11,16);
+}
+
+function getMoon() {
+
+    let phases = [
+        "🌑 Новолуние",
+        "🌒 Растущая Луна",
+        "🌓 Первая четверть",
+        "🌔 Растущая Луна",
+        "🌕 Полнолуние",
+        "🌖 Убывающая Луна",
+        "🌗 Последняя четверть",
+        "🌘 Убывающая Луна"
+    ];
+
+    let day = new Date().getDate();
+
+    return phases[day % phases.length];
+}
+
+function showWarning(data) {
+
+    let temp = data.current.temperature_2m;
+    let wind = data.current.wind_speed_10m;
+    let rain = data.current.rain;
+
+    let warning = "";
+
+    if (temp >= 35) {
+        warning = "🔥 Очень жарко! Будьте осторожны.";
+    }
+
+    if (temp <= -10) {
+        warning = "❄️ Очень холодно! Одевайтесь теплее.";
+    }
+
+    if (wind >= 50) {
+        warning = "💨 Сильный ветер!";
+    }
+
+    if (rain >= 10) {
+        warning = "🌧️ Сейчас идёт дождь.";
+    }
+
+    document.getElementById("warning").innerHTML =
+        warning ? `<div class="warning">${warning}</div>` : "";
+}
+
+function getLocation() {
+
+    if (!navigator.geolocation) {
+
+        alert("Ваш браузер не поддерживает определение местоположения.");
+
+        return;
+    }
+
+    document.getElementById("status").textContent =
+        "📍 Определяем ваше местоположение...";
+
+    navigator.geolocation.getCurrentPosition(
+
+        async function(position) {
+
+            let lat = position.coords.latitude;
+            let lon = position.coords.longitude;
+
+            currentLat = lat;
+            currentLon = lon;
+
+            try {
+
+                let response = await fetch(
+                    "https://geocoding-api.open-meteo.com/v1/search?name=Tashkent&count=1"
+                );
+
+                loadWeather("Моё местоположение", lat, lon);
+
+            } catch {
+
+                loadWeather("Моё местоположение", lat, lon);
+            }
+        },
+
+        function() {
+
+            alert(
+                "Не удалось определить местоположение. " +
+                "Разрешите браузеру доступ к геолокации."
+            );
+        }
+    );
+}
+
+function addFavorite() {
+
+    if (!currentCity) return;
+
+    let favorites =
+        JSON.parse(localStorage.getItem("favorites") || "[]");
+
+    if (!favorites.includes(currentCity)) {
+
+        favorites.push(currentCity);
+
+        localStorage.setItem(
+            "favorites",
+            JSON.stringify(favorites)
+        );
+    }
+
+    showFavorites();
+}
+
+function showFavorites() {
+
+    let box = document.getElementById("favorites");
+
+    let favorites =
+        JSON.parse(localStorage.getItem("favorites") || "[]");
+
+    if (favorites.length === 0) {
+
+        box.textContent =
+            "Пока нет избранных городов.";
+
+        return;
+    }
+
+    box.innerHTML = "";
+
+    favorites.forEach(city => {
+
+        let item =
+            document.createElement("div");
+
+        item.className = "city-item";
+
+        item.textContent = "⭐ " + city;
+
+        item.onclick = function() {
+
+            document.getElementById("cityInput").value = city;
+
+            searchCity();
+        };
+
+        box.appendChild(item);
+    });
+}
+
+async function loadWorldWeather() {
+
+    let temperatures = [];
+
+    for (let city of worldCities) {
+
+        try {
+
+            let response = await fetch(
+                "https://api.open-meteo.com/v1/forecast" +
+                "?latitude=" + city.lat +
+                "&longitude=" + city.lon +
+                "&current=temperature_2m,weather_code"
+            );
+
+            let data = await response.json();
+
+            temperatures.push({
+
+                name: city.name,
+                lat: city.lat,
+                lon: city.lon,
+                temp: data.current.temperature_2m,
+                code: data.current.weather_code
+
+            });
+
+        } catch {}
+    }
+
+    let sorted =
+        [...temperatures].sort(
+            (a,b) => b.temp - a.temp
+        );
+
+    let hot =
+        document.getElementById("hotCities");
+
+    let cold =
+        document.getElementById("coldCities");
+
+    hot.innerHTML = "";
+    cold.innerHTML = "";
+
+    sorted.slice(0,5).forEach(city => {
+
+        hot.innerHTML += `
+        <div class="city-item"
+        onclick="loadWeather('${city.name}',${city.lat},${city.lon})">
+        🔥 ${city.name}: ${Math.round(city.temp)}°C
+        </div>
+        `;
+
+    });
+
+    sorted.slice(-5).reverse().forEach(city => {
+
+        cold.innerHTML += `
+        <div class="city-item"
+        onclick="loadWeather('${city.name}',${city.lat},${city.lon})">
+        ❄️ ${city.name}: ${Math.round(city.temp)}°C
+        </div>
+        `;
+
+    });
+
+    temperatures.forEach(city => {
+
+        let marker =
+            L.marker([city.lat, city.lon])
+            .addTo(map);
+
+        marker.bindPopup(
+            "<b>" + city.name + "</b><br>" +
+            Math.round(city.temp) + "°C<br>" +
+            weatherText(city.code)
+        );
+
+        markers.push(marker);
+    });
+}
+
+showFavorites();
+
+loadWeather(
+    "Ташкент",
+    41.2995,
+    69.2401
+);
+
+loadWorldWeather();
+
+</script>
+
+</body>
+</html>
